@@ -1,5 +1,7 @@
 from Gmail.mailing import get_latest_email
-
+from Graph.graph import build_graph
+from IPython.display import Image,display
+from pathlib import Path
 
 def main():
 
@@ -9,20 +11,42 @@ def main():
         print("No email found.")
         return
 
-    print("\n========== EMAIL ==========\n")
 
-    print("Message ID :", email["message_id"])
-    print("Thread ID  :", email["thread_id"])
-    print("From       :", email["from"])
-    print("To         :", email["to"])
-    print("Subject    :", email["subject"])
-    print("Date       :", email["date"])
+    graph = build_graph()
 
-    print("\n---------- BODY -----------\n")
 
-    print(email["body"])
+    initial_state = {
+        "email": email,
 
-    print("\n============================")
+        "intent": None,
+        "meeting_action": None,
+        "confidence": None,
+        "reason": None,
+
+        "status": None
+    }
+
+
+    result = graph.invoke(initial_state)
+
+    try:
+        png_data = graph.get_graph().draw_mermaid_png()
+
+        output_path = Path("graph.png")
+        output_path.write_bytes(png_data)
+
+        print(f"\nGraph saved to: {output_path.resolve()}")
+
+    except Exception as e:
+        print("Graph visualization failed:", e)
+
+    print("\n======= FINAL STATE =======\n")
+
+    print("Intent         :", result["intent"])
+    print("Meeting action :", result["meeting_action"])
+    print("Confidence     :", result["confidence"])
+    print("Reason         :", result["reason"])
+    print("Status         :", result["status"])
 
 
 if __name__ == "__main__":

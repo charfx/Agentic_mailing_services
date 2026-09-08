@@ -11,3 +11,4 @@ wheels/
 
 Credentiels
 token.json
+.env
