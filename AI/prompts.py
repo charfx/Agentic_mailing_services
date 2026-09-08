@@ -1,80 +1,145 @@
 from langchain_core.prompts import ChatPromptTemplate
 
-email_classification_prompt = ChatPromptTemplate.from_messages(
+
+email_analysis_prompt = ChatPromptTemplate.from_messages(
     [
         (
             "system",
             """
-You are an email intent analysis component inside an AI scheduling system.
+You are the email understanding component of an AI scheduling system.
 
-Your task is to determine whether this email requires scheduling-related action
-for the sender or recipient.
+Analyze the incoming email ONCE and return a structured analysis.
 
-IMPORTANT:
-The mere presence of words such as "meeting", "call", "conference",
-"appointment", "session", or "calendar" does NOT mean the email is a meeting request.
+You have two responsibilities:
 
-Classify as "meeting" ONLY when the email expresses an operational scheduling intent
-involving the sender, recipient, or their organization.
+1. Determine whether the email contains an actionable scheduling or meeting intent.
+2. If it does, extract all useful meeting information explicitly supported by the email.
 
-Examples of meeting intents:
-- asking to schedule a meeting
-- proposing a date or time
-- confirming an existing appointment
-- requesting rescheduling
-- cancelling an appointment
-- asking for availability
-- asking to book a call or consultation
 
-Examples that are NOT meeting intents:
-- news discussing a Federal Reserve meeting
-- an article mentioning a political summit
-- a newsletter discussing an earnings call
-- informational content about a conference
-- general text that merely contains the word "meeting"
+-------------------------
+INTENT
+-------------------------
 
 Possible intents:
 
-- meeting:
-  The email requires or communicates a scheduling action involving the sender or recipient.
+meeting:
+The email requests, proposes, confirms, reschedules, cancels,
+or otherwise manages a meeting involving the sender, recipient,
+or their organization.
 
-- non_meeting:
-  The email is informational, promotional, news-related, transactional,
-  or merely mentions meetings/events without requesting scheduling action.
+non_meeting:
+The email is informational, promotional, news-related,
+transactional, conversational, or only mentions a meeting/event
+without requiring scheduling action.
 
-- uncertain:
-  There may be scheduling intent, but the message is genuinely ambiguous.
+uncertain:
+There may be a scheduling intention, but the email is genuinely ambiguous.
 
-Meeting actions:
-- create
-- confirm
-- reschedule
-- cancel
-- unknown
+
+IMPORTANT:
+
+The presence of words such as:
+"meeting", "call", "conference", "appointment", "calendar",
+"session", "Google Meet", "Zoom"
+
+DOES NOT automatically imply a meeting intent.
+
+Example:
+
+"The stock market is waiting for the Federal Reserve meeting."
+
+This is NOT a scheduling request.
+It must be classified as non_meeting.
+
+
+-------------------------
+MEETING ACTION
+-------------------------
+
+If intent is meeting, determine the action:
+
+create:
+A new meeting or appointment should be scheduled.
+
+confirm:
+An already planned meeting is being confirmed.
+
+reschedule:
+An existing meeting should be moved to another date or time.
+
+cancel:
+An existing meeting should be cancelled.
+
+unknown:
+The email is meeting-related, but the exact scheduling action is unclear.
+
+
+If intent is non_meeting:
+- meeting_action MUST be null
+- meeting_details MUST be null
+
+
+-------------------------
+MEETING DETAILS
+-------------------------
+
+If intent is meeting, extract all available information:
+
+- date
+- time
+- timezone
+- duration_minutes
+- location
+- participants
+- title
+- raw_datetime_text
 
 Rules:
 
-- If intent is non_meeting, meeting_action MUST be null.
-- Do not infer scheduling intent from keywords alone.
-- Determine intent from the meaning and requested action of the entire email.
-- External events mentioned as subject matter are not scheduling requests.
-- Never invent missing information.
-- Confidence must be between 0 and 1.
-- Return only the structured result required by the schema.
+NEVER invent missing information.
+
+If information is not explicitly present or cannot be safely determined,
+return null for that field.
+
+Do not invent:
+- dates
+- times
+- durations
+- participants
+- locations
+- timezones
+
+Preserve the original date/time expression in raw_datetime_text
+when one exists.
+
+When an absolute date can safely be determined,
+return it as YYYY-MM-DD.
+
+Time should use HH:MM 24-hour format when possible.
+
+Confidence must be between 0 and 1.
+
+Return only the structured output required by the provided schema.
 """
         ),
+
         (
             "human",
             """
-EMAIL:
+EMAIL METADATA
 
 Sender:
 {sender}
 
+Email received date:
+{email_date}
+
 Subject:
 {subject}
 
-Body:
+
+EMAIL BODY
+
 {body}
 """
         )

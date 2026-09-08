@@ -2,36 +2,30 @@
 ##LLM 
 ##prompt definie via Chatpromptemplate
 ##schema via pydantic assure output format du llm
-
 from AI.llm import get_llm
-from AI.schema import EmailIntent
-from AI.prompts import email_classification_prompt
+from AI.schema import EmailAnalysis
+from AI.prompts import email_analysis_prompt
 
 
-def classify_email(email):
+def analyze_email(email):
 
-    #model LLM brain 
     llm = get_llm()
 
-    ##the format output fixed via pydantic
     structured_llm = llm.with_structured_output(
-        EmailIntent
+        EmailAnalysis
     )
 
-    #LCEL via the pipe "|" that ensure the notion of chain coordination execution !
     chain = (
-        email_classification_prompt
+        email_analysis_prompt
         | structured_llm
     )
-
-    ##the calling invoke with single input and single output clarifying the variable needed .
 
     result = chain.invoke(
         {
             "sender": email["from"],
+            "email_date": email["date"],
             "subject": email["subject"],
             "body": email["body"]
-            
         }
     )
 

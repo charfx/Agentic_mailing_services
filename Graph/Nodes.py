@@ -1,18 +1,25 @@
-from AI.classifier import classify_email
+from AI.classifier import analyze_email
 
 
 def classify_email_node(state):
 
     email = state["email"]
 
-    result = classify_email(email)
+    result = analyze_email(email)
+
+    meeting_details = None
+
+    if result.meeting_details is not None:
+        meeting_details = result.meeting_details.model_dump()
 
     return {
         "intent": result.intent,
         "meeting_action": result.meeting_action,
         "confidence": result.confidence,
-        "reason": result.reason
+        "reason": result.reason,
+        "meeting_details": meeting_details
     }
+
 
 def meeting_detected_node(state):
 
@@ -26,6 +33,7 @@ def review_required_node(state):
     return {
         "status": "review_required"
     }
+
 
 def route_email(state):
 
