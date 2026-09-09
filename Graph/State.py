@@ -1,4 +1,6 @@
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional,Annotated
+
+from langgraph.graph.message import add_messages
 
 class AgentState(TypedDict):
 
@@ -15,3 +17,5 @@ class AgentState(TypedDict):
     meeting_details: Optional[dict]
 
     status: Optional[str]
+
+    messages: Annotated[list, add_messages]

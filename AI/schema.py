@@ -15,8 +15,13 @@ class MeetingDetails(BaseModel):
     )
 
     timezone: Optional[str] = Field(
-        default=None,
-        description="Explicit timezone if provided or clearly identifiable."
+    default=None,
+    description=(
+        "Timezone as an IANA identifier such as "
+        "'Africa/Casablanca', 'Europe/Paris', "
+        "'America/New_York'. "
+        "Do not return expressions such as 'Morocco time'."
+        )
     )
 
     duration_minutes: Optional[int] = Field(

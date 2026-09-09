@@ -1,11 +1,11 @@
 from googleapiclient.discovery import build
 
-from Gmail.auth import authenticate_gmail
+from Gmail.auth import authenticate
 
 
 def get_gmail_service():
 
-    credentials = authenticate_gmail()
+    credentials = authenticate()
 
     service = build(
         "gmail",

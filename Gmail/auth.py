@@ -9,11 +9,12 @@ TOKEN_FILE = BASE_DIR / "token.json"
 
 
 SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly"
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/calendar",
 ]
 
 
-def authenticate_gmail() -> Credentials:
+def authenticate() -> Credentials:
 
     credentials = None
 
