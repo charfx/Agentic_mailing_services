@@ -50,3 +50,26 @@ def route_email(state):
         return "review"
 
     return "meeting"
+
+def route_after_calendar_tool(state):
+
+    messages = state.get("messages", [])
+
+    if not messages:
+        return "end"
+
+    last_message = messages[-1]
+
+    tool_name = getattr(
+        last_message,
+        "name",
+        None
+    )
+
+    print("\n===== TOOL ROUTING =====")
+    print("Last tool:", tool_name)
+
+    if tool_name == "find_calendar_event":
+        return "agent"
+
+    return "end"

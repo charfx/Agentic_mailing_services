@@ -12,7 +12,8 @@ from Graph.Nodes import (
     classify_email_node,
     meeting_detected_node,
     review_required_node,
-    route_email
+    route_email,
+    route_after_calendar_tool,
 )
 
 
@@ -71,7 +72,7 @@ def build_graph():
         {
             "meeting": "meeting_detected",
             "review": "review_required",
-            "non_meeting": END
+            "non_meeting": END,
         }
     )
 
@@ -85,7 +86,7 @@ def build_graph():
     )
 
     # -------------------------
-    # Calendar Agent routing
+    # Agent → Tool or END
     # -------------------------
 
     builder.add_conditional_edges(
@@ -97,9 +98,25 @@ def build_graph():
         }
     )
 
-    # Tool result returns to agent
-    builder.add_edge(
+    # -------------------------
+    # Tool → Agent or END
+    # -------------------------
+
+    builder.add_conditional_edges(
         "calendar_tools",
+        route_after_calendar_tool,
+        {
+            "agent": "calendar_agent",
+            "end": END,
+        }
+    )
+
+    # -------------------------
+    # Review
+    # -------------------------
+
+    builder.add_edge(
+        "review_required",
         END
     )
 
