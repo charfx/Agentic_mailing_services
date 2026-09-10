@@ -24,6 +24,7 @@ from Graph.Nodes import (
     prepare_confirmation_node,
     prepare_clarification_node,
     capture_calendar_result_node,
+    log_node,
 )
 
 
@@ -98,6 +99,9 @@ def build_graph():
     builder.add_node(
         "capture_calendar_result",
         capture_calendar_result_node
+    )
+    builder.add_node(
+        "log_node",log_node
     )
 
     # ==================================================
@@ -220,7 +224,12 @@ def build_graph():
     # ==================================================
 
     builder.add_edge(
-        "sender_tools",
+    "sender_tools",
+    "log_node"
+)
+
+    builder.add_edge(
+        "log_node",
         END
     )
 

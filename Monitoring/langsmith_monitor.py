@@ -1,7 +1,15 @@
-from Graph.graph import build_graph
-
+from dotenv import load_dotenv
+import os 
 from Gmail.mailing import get_latest_email
-from Gmail.parser import parse_email
+from Graph.graph import build_graph
+load_dotenv()
+
+
+os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY", "")
+os.environ["LANGSMITH_API_KEY"] = os.getenv("LANGSMITH_API_KEY", "")
+os.environ["LANGSMITH_TRACING"]="true"
+os.environ["LANGSMITH_PROJECT"]="pr-sandy-owner-55"
+os.environ["LANGSMITH_ENDPOINT"]="https://api.smith.langchain.com"
 
 
 def main():
