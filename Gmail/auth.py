@@ -11,6 +11,7 @@ TOKEN_FILE = BASE_DIR / "token.json"
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/gmail.send",
 ]
 
 

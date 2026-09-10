@@ -19,3 +19,15 @@ class AgentState(TypedDict):
     status: Optional[str]
 
     messages: Annotated[list, add_messages]
+
+    request_status: Optional[str]
+
+    missing_fields: Optional[list[str]]
+
+    response_type: Optional[str]
+
+    calendar_result: Optional[dict]
+
+    generated_email: Optional[str]
+
+    email_send_result: Optional[dict]
