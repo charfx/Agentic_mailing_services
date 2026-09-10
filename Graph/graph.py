@@ -23,6 +23,7 @@ from Graph.Nodes import (
     required_items_node,
     prepare_confirmation_node,
     prepare_clarification_node,
+    capture_calendar_result_node,
 )
 
 
@@ -94,6 +95,10 @@ def build_graph():
         "sender_tools",
         sender_tools_node
     )
+    builder.add_node(
+        "capture_calendar_result",
+        capture_calendar_result_node
+    )
 
     # ==================================================
     # START
@@ -145,9 +150,9 @@ def build_graph():
         "sender_agent"
     )
 
-    # ==================================================
-    # CALENDAR AGENT
-    # ==================================================
+   # ==================================================
+# CALENDAR AGENT
+# ==================================================
 
     builder.add_conditional_edges(
         "calendar_agent",
@@ -159,7 +164,7 @@ def build_graph():
     )
 
     # ==================================================
-    # CALENDAR TOOL RESULT
+    # CALENDAR TOOLS
     # ==================================================
 
     builder.add_conditional_edges(
@@ -167,8 +172,17 @@ def build_graph():
         route_after_calendar_tool,
         {
             "agent": "calendar_agent",
-            "confirmation": "prepare_confirmation",
+            "confirmation": "capture_calendar_result",
         }
+    )
+
+    # ==================================================
+    # CAPTURE CALENDAR RESULT
+    # ==================================================
+
+    builder.add_edge(
+        "capture_calendar_result",
+        "prepare_confirmation"
     )
 
     # ==================================================
@@ -179,6 +193,14 @@ def build_graph():
         "prepare_confirmation",
         "sender_agent"
     )
+            # ==================================================
+            # PREPARE CONFIRMATION
+            # ==================================================
+
+    builder.add_edge(
+                "prepare_confirmation",
+                "sender_agent"
+            )
 
     # ==================================================
     # SENDER AGENT

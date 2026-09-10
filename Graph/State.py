@@ -30,4 +30,4 @@ class AgentState(TypedDict):
 
     generated_email: Optional[str]
 
-    email_send_result: Optional[dict]
+    log_result: Optional[dict]

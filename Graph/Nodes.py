@@ -1,5 +1,9 @@
 from AI.classifier import analyze_email
 from Tools.Gmail_sending_tool import send_email
+from datetime import datetime
+from Tools.Logs_tool import append_log_row
+import json
+import ast
 
 def classify_email_node(state):
 
@@ -165,4 +169,101 @@ def send_email_node(state):
 
     return {
         "email_send_result": result
+    }
+
+def log_node(state):
+
+    email = state.get("email", {})
+
+    result = append_log_row.invoke({
+        "timestamp": datetime.now().isoformat(),
+
+        "message_id": email.get("message_id"),
+        "thread_id": email.get("thread_id"),
+        "sender": email.get("from"),
+        "subject": email.get("subject"),
+
+        "intent": state.get("intent"),
+        "meeting_action": state.get("meeting_action"),
+        "confidence": state.get("confidence"),
+
+        "request_status": state.get("request_status"),
+        "missing_fields": state.get("missing_fields", []),
+
+        "calendar_success": None,
+        "calendar_event_id": None,
+
+        "response_type": state.get("response_type"),
+
+        "email_sent": True,
+    })
+
+    print("\n===== GOOGLE SHEETS LOG =====")
+    print(result)
+
+    return {
+        "log_result": result
+    }
+def capture_calendar_result_node(state):
+    """
+    Capture le résultat du dernier Calendar Tool exécuté
+    et le stocke dans state["calendar_result"].
+    """
+
+    messages = state.get("messages", [])
+
+    if not messages:
+        return {
+            "calendar_result": {
+                "success": False,
+                "error": "No tool message found"
+            }
+        }
+
+    last_message = messages[-1]
+
+    content = getattr(last_message, "content", None)
+
+    if content is None:
+        return {
+            "calendar_result": {
+                "success": False,
+                "error": "Calendar tool returned no content"
+            }
+        }
+
+    # Selon la version LangGraph/LangChain,
+    # le ToolMessage peut contenir directement un dict
+    if isinstance(content, dict):
+        calendar_result = content
+
+    # Très souvent ToolNode convertit le dict retourné
+    # par le tool en string
+    elif isinstance(content, str):
+        try:
+            calendar_result = json.loads(content)
+
+        except json.JSONDecodeError:
+            try:
+                calendar_result = ast.literal_eval(content)
+
+            except (ValueError, SyntaxError):
+                calendar_result = {
+                    "success": False,
+                    "error": "Unable to parse calendar tool result",
+                    "raw_content": content
+                }
+
+    else:
+        calendar_result = {
+            "success": False,
+            "error": "Unexpected calendar tool result format",
+            "raw_content": str(content)
+        }
+
+    print("\n===== CAPTURE CALENDAR RESULT =====")
+    print(calendar_result)
+
+    return {
+        "calendar_result": calendar_result
     }
