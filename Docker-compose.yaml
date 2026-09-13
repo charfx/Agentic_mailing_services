@@ -1,0 +1,12 @@
+services:
+  agentic-mailing:
+    build: .
+    image: agentic-mailing:v1
+    container_name: agentic-mailing-container
+
+    env_file:
+      - .env
+
+    volumes:
+      - ./Credentiels/credentiel.json:/app/Credentiels/credentiel.json:ro
+      - ./token.json:/app/token.json

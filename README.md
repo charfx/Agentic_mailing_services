@@ -13,6 +13,7 @@ Orchestré par **LangGraph** · Raisonnement **LangChain + Groq** · Observé pa
 ![LangSmith](https://img.shields.io/badge/LangSmith-tracing-FF6F61)
 ![Groq](https://img.shields.io/badge/Groq-gpt--oss--20b-F55036)
 ![Google APIs](https://img.shields.io/badge/Google-Gmail%20%7C%20Calendar%20%7C%20Sheets-4285F4?logo=google&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 
 </div>
 
@@ -27,7 +28,8 @@ Orchestré par **LangGraph** · Raisonnement **LangChain + Groq** · Observé pa
 | [🧩 Tous les concepts LangChain / LangGraph](#-tous-les-concepts-langchain--langgraph-utilisés) | [📦 Le State](#-le-state-la-mémoire-partagée-du-graphe) |
 | [🧱 Référence des nœuds](#-référence-des-nœuds) | [🛠️ Référence des tools](#️-référence-des-tools) |
 | [🏗️ Structure du projet](#️-structure-du-projet) | [🚀 Installation & exécution](#-installation--exécution) |
-| [🔬 Observabilité : LangSmith](#-observabilité--langsmith--langgraph-dev) | [🧭 Roadmap & limites connues](#-roadmap--limites-connues) |
+| [🐳 Dockerisation](#-dockerisation) | [🔬 Observabilité : LangSmith](#-observabilité--langsmith--langgraph-dev) |
+| [🧭 Roadmap & limites connues](#-roadmap--limites-connues) | |
 
 ---
 
@@ -461,7 +463,11 @@ Agentic_Mailing_services/
 ├── Credentiels/credentiel.json # secret OAuth (gitignore)
 ├── token.json                  # jeton OAuth mis en cache (gitignore)
 ├── .env                        # GROQ_API_KEY, LANGSMITH_API_KEY (gitignore)
-└── pyproject.toml              # dépendances (uv)
+├── pyproject.toml              # dépendances (uv)
+│
+├── Dockerfile                  # image de l'application (python:3.12-slim)
+├── Docker-compose.yaml         # service, env_file, volumes (credentiel.json, token.json)
+└── .dockerignore               # exclut .venv, secrets, caches… du contexte de build
 ```
 
 ---
@@ -503,6 +509,93 @@ uv run python -m Monitoring.langsmith_monitor
 uv run python -m main
 ```
 Au premier lancement, une fenêtre de consentement OAuth s'ouvre ; le jeton est ensuite mis en cache dans `token.json`.
+
+---
+
+## 🐳 Dockerisation
+
+Le projet est **conteneurisé** : une image autonome (Python + dépendances + code) exécutée via Docker Compose, sans avoir besoin d'installer `uv` ni Python en local sur la machine cible.
+
+### Fichiers concernés
+
+| Fichier | Rôle |
+|---|---|
+| [`Dockerfile`](Dockerfile) | Construit l'image : base `python:3.12-slim`, installe `requirment.txt`, copie le code, lance `python main.py` au démarrage du conteneur |
+| [`Docker-compose.yaml`](Docker-compose.yaml) | Définit le service `agentic-mailing` : build de l'image (`agentic-mailing:v1`), injection des variables d'environnement, montage des secrets Google en volumes |
+| [`.dockerignore`](.dockerignore) | Exclut du **build context** tout ce qui ne doit pas entrer dans l'image : `.venv/`, caches Python, `.git/`, et surtout les secrets (`.env`, `credentials/`, `token.json`) — ils sont injectés au runtime, jamais gravés dans l'image |
+
+### Comment l'image est construite
+
+```dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirment.txt .
+RUN pip install --no-cache-dir -r requirment.txt
+COPY . .
+CMD ["python", "main.py"]
+```
+Les dépendances (`requirment.txt`, la liste "pip" équivalente à `pyproject.toml`) sont copiées et installées **avant** le reste du code : Docker met cette couche en cache, donc un rebuild après une simple modification du code source ne réinstalle pas les paquets.
+
+### Secrets & configuration : rien n'est gravé dans l'image
+
+`Docker-compose.yaml` sépare volontairement **le code** (dans l'image) des **secrets** (injectés au démarrage du conteneur) :
+
+```yaml
+services:
+  agentic-mailing:
+    build: .
+    image: agentic-mailing:v1
+    container_name: agentic-mailing-container
+
+    env_file:
+      - .env
+
+    volumes:
+      - ./Credentiels/credentiel.json:/app/Credentiels/credentiel.json:ro
+      - ./token.json:/app/token.json
+```
+
+- **`env_file: .env`** → `GROQ_API_KEY` et `LANGSMITH_API_KEY` sont injectées comme variables d'environnement du conteneur, jamais copiées dans l'image (`.env` est listé dans `.dockerignore`).
+- **`Credentiels/credentiel.json` monté en lecture seule (`:ro`)** → le secret OAuth du client Google reste sur l'hôte, le conteneur ne fait que le lire.
+- **`token.json` monté en lecture/écriture** → le jeton (et son `refresh_token`) est **persisté sur l'hôte** : il survit à un `docker compose down`/`up`, et n'a donc pas besoin d'être régénéré à chaque redémarrage du conteneur.
+
+> ⚠️ **Point d'attention — quoting des variables d'environnement.** Contrairement à `python-dotenv` (utilisé en local via `load_dotenv()`), Docker Compose **n'interprète pas** les guillemets dans `env_file` : `GROQ_API_KEY="gsk_..."` serait injecté avec les guillemets inclus dans la valeur, ce qui casse l'appel API. Les clés doivent donc être écrites **sans guillemets** dans `.env` (`GROQ_API_KEY=gsk_...`) — voir les commentaires en tête du fichier.
+
+> ⚠️ **Point d'attention — première authentification OAuth.** `Gmail/auth.py` déclenche `flow.run_local_server(port=0)` au tout premier lancement, ce qui ouvre un navigateur **sur la machine qui exécute le process** — ça ne fonctionne pas dans un conteneur headless. Il faut donc générer `token.json` **une première fois en local** (`uv run python -m main`, hors Docker) pour passer le consentement Google, puis seulement ensuite lancer le conteneur : le volume `./token.json:/app/token.json` réutilisera ce jeton et le rafraîchira automatiquement (le `refresh_token` ne nécessite plus de navigateur).
+
+### Build & run
+
+```bash
+# construit l'image puis démarre le conteneur (foreground, logs en direct)
+docker compose -f Docker-compose.yaml up --build
+
+# en arrière-plan
+docker compose -f Docker-compose.yaml up --build -d
+
+# arrêt
+docker compose -f Docker-compose.yaml down
+```
+
+Équivalent en `docker` pur, sans Compose :
+```bash
+docker build -t agentic-mailing:v1 .
+
+docker run --rm \
+  --env-file .env \
+  -v "$(pwd)/Credentiels/credentiel.json:/app/Credentiels/credentiel.json:ro" \
+  -v "$(pwd)/token.json:/app/token.json" \
+  agentic-mailing:v1
+```
+
+> ℹ️ Le conteneur exécute `main.py` par défaut, **sans tracing LangSmith** (cf. [roadmap](#-roadmap--limites-connues)). Pour tracer l'exécution dans LangSmith depuis Docker, surcharger la commande :
+> ```bash
+> docker compose -f Docker-compose.yaml run --rm agentic-mailing python -m Monitoring.langsmith_monitor
+> ```
+
+### Prérequis
+
+- **Docker Desktop** (Windows/Mac) ou **Docker Engine + plugin Compose** (Linux)
+- Les mêmes prérequis Google/Groq que pour l'exécution locale (section précédente) : `Credentiels/credentiel.json`, `.env` valide
 
 ---
 
